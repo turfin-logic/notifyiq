@@ -7,10 +7,16 @@
     "notifyiq": "./src/index.js"
   },
   "type": "module",
+  "preferGlobal": true,
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node --test src/**/*.test.js",
+    "test": "node --test test/**/*.test.js",
     "lint": "eslint src/"
   },
   "keywords": [
@@ -26,6 +32,14 @@
   ],
   "author": "turfin-logic",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/turfin-logic/notifyiq.git"
+  },
+  "homepage": "https://github.com/turfin-logic/notifyiq#readme",
+  "bugs": {
+    "url": "https://github.com/turfin-logic/notifyiq/issues"
+  },
   "engines": {
     "node": ">=18.0.0"
   },

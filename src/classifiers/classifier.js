@@ -27,7 +27,15 @@ const TYPE_WEIGHTS = {
   Discussion: 40,
   Commit: 20,
   VulnerabilityAlert: 95,
+  // CI noise — these flood inboxes and should score LOW by default
+  CheckSuite: 15,
+  CheckRun: 15,
+  WorkflowRun: 15,
+  StateChange: 25,
 };
+
+// Reasons that represent pure CI/automation noise
+const NOISE_REASONS = new Set(['ci_activity', 'state_change']);
 
 const SPAM_PATTERNS = [
   /\b(free\s*money|crypto|nft|airdrop|giveaway)\b/i,
@@ -62,6 +70,18 @@ export function classifyNotification(notification) {
   const typeScore = TYPE_WEIGHTS[type] || 50;
   let score = (reasonScore * 0.6) + (typeScore * 0.4);
 
+  // Security alerts are always critical regardless of reason
+  if (type === 'VulnerabilityAlert') {
+    score = Math.max(score, 85);
+  }
+
+  // CI/automation noise penalty — these flood inboxes with low-value alerts
+  const isNoise = NOISE_REASONS.has(reason) || ['CheckSuite', 'CheckRun', 'WorkflowRun'].includes(type);
+  if (isNoise) {
+    // Only escalate if the CI actually FAILED (keyword boost still applies below)
+    score = Math.min(score, 40);
+  }
+
   // Boost for unread
   if (unread) score += 10;
 
@@ -72,19 +92,23 @@ export function classifyNotification(notification) {
   else if (ageHours > 24) score -= 3;   // > 1 day
 
   // Keyword analysis on title
+  // Keyword analysis on title — SKIP for CI noise (e.g. "workflow run failed" matches "fail")
+  // so CI notifications don't get artificially boosted to high priority.
   let category = 'neutral';
-  for (const [cat, keywords] of Object.entries(ACTIONABLE_KEYWORDS)) {
-    for (const keyword of keywords) {
-      if (title.toLowerCase().includes(keyword)) {
-        category = cat;
-        if (cat === 'critical') score = Math.max(score, 90);
-        else if (cat === 'high') score = Math.max(score, 70);
-        else if (cat === 'medium') score = Math.max(score, 50);
-        else score = Math.max(score, 30);
-        break;
+  if (!isNoise) {
+    for (const [cat, keywords] of Object.entries(ACTIONABLE_KEYWORDS)) {
+      for (const keyword of keywords) {
+        if (title.toLowerCase().includes(keyword)) {
+          category = cat;
+          if (cat === 'critical') score = Math.max(score, 90);
+          else if (cat === 'high') score = Math.max(score, 70);
+          else if (cat === 'medium') score = Math.max(score, 50);
+          else score = Math.max(score, 30);
+          break;
+        }
       }
+      if (category !== 'neutral') break;
     }
-    if (category !== 'neutral') break;
   }
 
   // Spam detection

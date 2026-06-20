@@ -11,6 +11,8 @@ import markCommand from './commands/mark.js';
 import snoozeCommand from './commands/snooze.js';
 import configCommand from './commands/config.js';
 import autoCommand from './commands/auto.js';
+import watchCommand from './commands/watch.js';
+import searchCommand from './commands/search.js';
 
 const VERSION = '1.0.0';
 
@@ -100,6 +102,30 @@ program
   .option('--run', 'Run auto-actions on current inbox')
   .option('--dry-run', 'Preview what auto-actions would do')
   .action(autoCommand);
+
+program
+  .command('watch')
+  .alias('w')
+  .description('Manage repo subscriptions — mute/unwatch noisy repos')
+  .option('--list', 'List all repos you are watching')
+  .option('--mute <owner/repo>', 'Unsubscribe (silence all notifications from a repo)')
+  .option('--unmute <owner/repo>', 'Re-watch a muted repo')
+  .option('--ignore <owner/repo>', 'Ignore (blocks even @mentions)')
+  .option('--state <owner/repo>', 'Check subscription state of a repo')
+  .action(watchCommand);
+
+program
+  .command('search <query>')
+  .alias('f')
+  .description('Search across GitHub — issues, PRs, repos, code')
+  .option('-t, --type <type>', 'Search type: issues, prs, repos, code, users', 'issues')
+  .option('-r, --repo <repo>', 'Restrict search to a repo (owner/repo)')
+  .option('--author <user>', 'Filter by author username')
+  .option('--assignee <user>', 'Filter by assignee username')
+  .option('-s, --state <state>', 'Filter by state: open, closed', 'open')
+  .option('-l, --limit <n>', 'Max results', '20')
+  .option('--sort <field>', 'Sort: updated, created, comments', 'updated')
+  .action(searchCommand);
 
 // Default action — show inbox
 program.action(async () => {

@@ -1,8 +1,9 @@
 <p align="center">
+  <a href="https://github.com/turfin-logic/notifyiq/actions"><img src="https://img.shields.io/github/actions/workflow/status/turfin-logic/notifyiq/ci.yml?branch=master&style=for-the-badge&label=CI" alt="CI Status" /></a>
   <img src="https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js" alt="Node.js" />
   <img src="https://img.shields.io/badge/GitHub_CLI-Required-181717?style=for-the-badge&logo=github" alt="GitHub CLI" />
+  <img src="https://img.shields.io/badge/tests-17%2F17-brightgreen?style=for-the-badge" alt="Tests" />
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License" />
-  <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge" alt="PRs Welcome" />
 </p>
 
 <h1 align="center">🧠 NotifyIQ</h1>
@@ -38,6 +39,8 @@ GitHub notifications are **broken** for serious developers:
 | 🗑️ **Spam Detection** | Auto-detect and filter spam notifications |
 | 💤 **Snooze** | Snooze notifications from noisy repos for later |
 | 🤖 **Auto-Actions** | Configurable rules: auto-read spam, flag mentions, etc. |
+| 📺 **Watch/Mute** | Mute, unwatch, or ignore noisy repos |
+| 🔍 **Search** | Find issues, PRs, repos, and code across GitHub |
 | ⚙️ **Configurable** | Tweak priority thresholds, AI provider, rules |
 
 ---
@@ -168,6 +171,28 @@ notifyiq auto --run                 # Run auto-actions
 notifyiq auto --dry-run             # Preview what would happen
 ```
 
+### `notifyiq watch` (alias: `w`)
+Manage repo subscriptions — mute noisy repos, unwatch, ignore.
+
+```bash
+notifyiq watch --list                # List all repos you're watching
+notifyiq watch --mute owner/repo     # Unsubscribe (silence notifications)
+notifyiq watch --unmute owner/repo    # Re-watch a muted repo
+notifyiq watch --ignore owner/repo   # Ignore (blocks even @mentions)
+notifyiq watch --state owner/repo    # Check subscription state
+```
+
+### `notifyiq search` (alias: `f`)
+Search across GitHub — issues, PRs, repos, and code.
+
+```bash
+notifyiq search "vulnerability"                     # Search issues
+notifyiq search "memory leak" --type prs            # Search pull requests
+notifyiq search "TODO" --type code --repo owner/repo # Search code in a repo
+notifyiq search "auth" --author turfin-logic        # Filter by author
+notifyiq f "react hooks" --type repos --limit 10    # Short alias, search repos
+```
+
 ---
 
 ## 🧠 AI Priority Scoring
@@ -248,13 +273,25 @@ src/
 │   ├── mark.js           # Read/unread management
 │   ├── snooze.js         # Snooze system
 │   ├── config.js         # Configuration manager
-│   └── auto.js           # Auto-action engine
+│   ├── auto.js           # Auto-action engine
+│   ├── watch.js          # Repo subscription management
+│   └── search.js         # GitHub search across repos
 ├── services/
 │   └── github.js         # GitHub API layer (gh CLI)
 ├── classifiers/
 │   └── classifier.js     # AI priority scoring
 └── utils/
     └── (helpers)
+test/
+└── classifier.test.js     # 17 unit tests for AI classifier
+```
+
+---
+
+## 🧪 Tests
+
+```bash
+npm test    # Run 17 unit tests (Node.js built-in test runner)
 ```
 
 ---

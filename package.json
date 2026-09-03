@@ -52,7 +52,7 @@
     "figures": "^6.1.0",
     "node-cache": "^5.1.2",
     "open": "^11.0.0",
-    "ora": "^9.4.0",
+    "ora": "^9.4.1",
     "terminal-link": "^5.0.0"
   },
   "devDependencies": {

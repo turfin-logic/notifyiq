@@ -1,7 +1,7 @@
 {
   "name": "notifyiq",
   "version": "1.0.0",
-  "description": "AI-powered GitHub notification triage CLI — stop drowning in notifications, start acting on what matters.",
+  "description": "Rule-based GitHub notification triage CLI",
   "main": "src/index.js",
   "bin": {
     "notifyiq": "./src/index.js"
@@ -11,19 +11,19 @@
   "files": [
     "src/",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/claim-evidence.md"
   ],
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node --test test/**/*.test.js",
-    "lint": "eslint src/"
+    "test": "node --test",
+    "lint": "eslint src test"
   },
   "keywords": [
     "github",
     "notifications",
     "cli",
-    "ai",
     "triage",
     "productivity",
     "maintainer",
@@ -41,7 +41,7 @@
     "url": "https://github.com/turfin-logic/notifyiq/issues"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.14.0"
   },
   "dependencies": {
     "chalk": "^5.6.2",
@@ -54,5 +54,9 @@
     "open": "^11.0.0",
     "ora": "^9.4.0",
     "terminal-link": "^5.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^10.9.1",
+    "globals": "^16.5.0"
   }
 }

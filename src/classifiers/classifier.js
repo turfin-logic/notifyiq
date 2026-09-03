@@ -1,5 +1,4 @@
-// src/classifiers/classifier.js — AI-powered notification classifier
-// Uses a smart rule-based engine with optional LLM enhancement
+// Deterministic heuristic classifier. No LLM or external inference is used.
 
 const PRIORITY_SCORES = {
   critical: 100,
@@ -120,6 +119,13 @@ export function classifyNotification(notification) {
       category = 'spam';
       break;
     }
+  }
+
+  // Security evidence wins over spam keywords, age and CI penalties.
+  if (type === 'VulnerabilityAlert' || /security|vulnerabilit|cve-\d|data leak/i.test(title)) {
+    spam = false;
+    score = Math.max(score, 90);
+    category = 'security';
   }
 
   // Determine priority label

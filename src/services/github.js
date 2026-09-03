@@ -1,7 +1,7 @@
 // src/services/github.js — GitHub API integration layer
 // Uses `gh api` under the hood for auth, pagination, and caching
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import NodeCache from 'node-cache';
 
 const cache = new NodeCache({ stdTTL: 60, checkperiod: 30 });
@@ -10,57 +10,47 @@ const cache = new NodeCache({ stdTTL: 60, checkperiod: 30 });
  * Execute a `gh api` command and parse JSON output.
  * Automatically handles pagination for list endpoints.
  */
-function ghApi(endpoint, options = {}) {
-  const {
-    method = 'GET',
-    paginate = false,
-    jq = null,
-    raw = false,
-    fields = {},
-    headers = {},
-  } = options;
+export function createGhApi(execute = execFileSync) {
+  return function ghApi(endpoint, options = {}) {
+    const { method = 'GET', paginate = false, fields = {}, headers = {} } = options;
+    if (!/^[a-zA-Z][^\r\n]*$/.test(endpoint) || endpoint.includes('://')) {
+      throw new Error('Expected a GitHub API endpoint path');
+    }
+    const args = ['api', endpoint, '--method', method];
+    for (const [key, value] of Object.entries(fields)) args.push('-f', `${key}=${value}`);
+    for (const [key, value] of Object.entries(headers)) args.push('-H', `${key}: ${value}`);
+    if (paginate) args.push('--paginate', '--slurp');
+    try {
+      const output = execute('gh', args, {
+        encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+        timeout: 30000, maxBuffer: 50 * 1024 * 1024,
+        shell: false,
+      }).trim();
+      if (!output) return null;
+      const parsed = JSON.parse(output);
+      if (!paginate) return parsed;
+      if (!Array.isArray(parsed) || !parsed.every(Array.isArray)) {
+        throw new Error('Expected paginated array response');
+      }
+      return parsed.flat();
+    } catch (err) {
+      const stderr = err.stderr?.toString().trim();
+      if (method === 'GET' && stderr?.includes('HTTP 404')) return null;
+      throw new Error(`GitHub API request failed: ${stderr || err.message}`);
+    }
+  };
+}
 
-  let cmd = `gh api "${endpoint}"`;
+const ghApi = createGhApi();
 
-  if (method !== 'GET') {
-    cmd += ` -X ${method}`;
+export function notificationEndpoint({ all = false, perPage = 100, participating = false, since = null, before = null } = {}) {
+  if (!Number.isInteger(Number(perPage)) || Number(perPage) < 1 || Number(perPage) > 100) {
+    throw new Error('perPage must be an integer between 1 and 100');
   }
-
-  for (const [key, value] of Object.entries(fields)) {
-    cmd += ` -f "${key}=${value}"`;
-  }
-
-  for (const [key, value] of Object.entries(headers)) {
-    cmd += ` -H "${key}: ${value}"`;
-  }
-
-  if (paginate) {
-    cmd += ' --paginate';
-  }
-
-  if (jq) {
-    cmd += ` --jq '${jq}'`;
-  }
-
-  if (raw) {
-    cmd += ' --input -';
-  }
-
-  try {
-    const output = execSync(cmd, {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-      maxBuffer: 50 * 1024 * 1024, // 50MB
-    });
-    const result = output.trim();
-    if (!result) return null;
-    return JSON.parse(result);
-  } catch (err) {
-    const stderr = err.stderr?.toString().trim();
-    if (stderr?.includes('HTTP 404')) return null;
-    if (stderr?.includes('No notifications found')) return [];
-    throw new Error(`GitHub API error: ${stderr || err.message}`);
-  }
+  const params = new URLSearchParams({ per_page: String(perPage), all: String(all), participating: String(participating) });
+  if (since) params.set('since', since);
+  if (before) params.set('before', before);
+  return `notifications?${params}`;
 }
 
 /**
@@ -79,11 +69,7 @@ export function fetchNotifications(options = {}) {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
-  let endpoint = 'notifications?per_page=' + perPage;
-  if (!all) endpoint += '&unread=true';
-  if (participating) endpoint += '&participating=true';
-  if (since) endpoint += '&since=' + since;
-  if (before) endpoint += '&before=' + before;
+  const endpoint = notificationEndpoint({ all, perPage, participating, since, before });
 
   const notifications = ghApi(endpoint, { paginate: true }) || [];
   cache.set(cacheKey, notifications, 45); // cache for 45 seconds
@@ -94,6 +80,7 @@ export function fetchNotifications(options = {}) {
  * Mark a specific notification as read (patch).
  */
 export function markNotificationRead(threadId) {
+  if (!/^\d+$/.test(String(threadId))) throw new Error('Expected a numeric notification thread ID');
   ghApi(`notifications/threads/${threadId}`, { method: 'PATCH' });
   // Invalidate cache
   cache.flushAll();
@@ -102,17 +89,13 @@ export function markNotificationRead(threadId) {
 /**
  * Mark a notification as unread.
  */
-export function markNotificationUnread(threadId) {
-  ghApi(`notifications/threads/${threadId}`, {
-    method: 'PATCH',
-    fields: { unread: 'true' },
-  });
-  cache.flushAll();
+export function markNotificationUnread() {
+  throw new Error('Marking a thread unread is not supported by the GitHub REST API; use the GitHub inbox.');
 }
 
 /**
  * Mark ALL notifications as read.
- * GitHub has no bulk endpoint, so we fetch all and patch each one.
+ * Patch only the supplied threads; do not mark unrelated notifications read.
  */
 export function markAllRead(notifications) {
   let count = 0;
@@ -131,8 +114,9 @@ export function markAllRead(notifications) {
  */
 export function extractThreadId(notification) {
   // Thread ID is the numeric part of the URL
-  const url = notification.url || notification.subject?.url || '';
-  const match = url.match(/\/(\d+)$/);
+  if (/^\d+$/.test(String(notification.id || ''))) return String(notification.id);
+  const url = notification.url || '';
+  const match = url.match(/^https:\/\/api\.github\.com\/notifications\/threads\/(\d+)$/);
   return match ? match[1] : null;
 }
 

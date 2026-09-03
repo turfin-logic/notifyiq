@@ -7,6 +7,17 @@ import os from 'os';
 
 const CONFIG_FILE = path.join(os.homedir(), '.notifyiq', 'config.json');
 
+const isCredentialKey = key => /(?:key|token|password|secret)s?$/i.test(key);
+const isUnsafeKey = key => isCredentialKey(key) || ['__proto__', 'prototype', 'constructor'].includes(key);
+function containsUnsafeKeys(value) {
+  return value !== null && typeof value === 'object' && Object.entries(value).some(([key, child]) => isUnsafeKey(key) || containsUnsafeKeys(child));
+}
+export function redactConfig(value) {
+  if (Array.isArray(value)) return value.map(redactConfig);
+  if (value === null || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, isCredentialKey(key) ? '[redacted]' : redactConfig(child)]));
+}
+
 const DEFAULTS = {
   ai_provider: 'rule-based', // rule-based | openai | anthropic | ollama
   ai_key: '',
@@ -64,14 +75,20 @@ export default async function configCommand(options) {
 
   // Set a single key=value
   if (setOption) {
-    const [key, ...valueParts] = setOption.split('=');
+    const [rawKey, ...valueParts] = setOption.split('=');
+    const key = rawKey.trim();
     const value = valueParts.join('=');
-    if (!key || value === undefined) {
-      console.log(chalk.yellow('\n⚠️  Use --set key=value format. Example: notifyiq config --set ai_provider=openai\n'));
+    const parsedValue = parseValue(value.trim());
+    if (key.split('.').some(isUnsafeKey) || containsUnsafeKeys(parsedValue)) {
+      throw new Error('Credential storage and unsafe configuration paths are not supported.');
+    }
+    if (key.trim() === 'ai_provider' && value.trim() !== 'rule-based') throw new Error('Only rule-based classification is implemented.');
+    if (!key || valueParts.length === 0) {
+      console.log(chalk.yellow('\n⚠️  Use --set key=value format. Example: notifyiq config --set ai_provider=rule-based\n'));
       return;
     }
     const config = loadConfig();
-    setNestedValue(config, key.trim(), parseValue(value.trim()));
+    setNestedValue(config, key, parsedValue);
     saveConfig(config);
     console.log(chalk.green(`\n✅ Set ${key.trim()} = ${value.trim()}\n`));
     return;
@@ -79,7 +96,7 @@ export default async function configCommand(options) {
 
   // Set AI provider
   if (aiProvider) {
-    const valid = ['rule-based', 'openai', 'anthropic', 'ollama'];
+    const valid = ['rule-based'];
     if (!valid.includes(aiProvider)) {
       console.log(chalk.yellow(`\n⚠️  Invalid provider. Choose from: ${valid.join(', ')}\n`));
       return;
@@ -93,17 +110,14 @@ export default async function configCommand(options) {
 
   // Set AI key
   if (aiKey) {
-    const config = loadConfig();
-    config.ai_key = aiKey;
-    saveConfig(config);
-    console.log(chalk.green('\n✅ AI API key saved securely.\n'));
-    return;
+    throw new Error('No LLM integration is implemented; API keys are not accepted.');
   }
 
   // Get a key
   if (getKey) {
+    if (getKey.split('.').some(isCredentialKey)) throw new Error('Credential values are not displayed.');
     const config = loadConfig();
-    const value = getNestedValue(config, getKey);
+    const value = redactConfig(getNestedValue(config, getKey));
     if (value === undefined) {
       console.log(chalk.yellow(`\n⚠️  Config key "${getKey}" not found.\n`));
       return;
@@ -122,13 +136,10 @@ export default async function configCommand(options) {
     console.log('');
 
     // Mask sensitive values
-    const display = { ...config };
-    if (display.ai_key) {
-      display.ai_key = display.ai_key.slice(0, 6) + '••••••••';
-    }
+    const display = redactConfig(config);
 
     for (const [key, value] of Object.entries(display)) {
-      if (typeof value === 'object') {
+      if (value !== null && typeof value === 'object') {
         console.log(chalk.bold(`  ${key}:`));
         for (const [k, v] of Object.entries(value)) {
           const enabled = v ? chalk.green('✓ enabled') : chalk.red('✗ disabled');

@@ -10,7 +10,7 @@ const RULES_FILE = path.join(os.homedir(), '.notifyiq', 'rules.json');
 
 const DEFAULT_RULES = {
   spam: {
-    enabled: true,
+    enabled: false,
     description: 'Auto-mark detected spam as read',
     action: 'mark-read',
     filters: {
@@ -26,15 +26,6 @@ const DEFAULT_RULES = {
       reason: ['author'],
       types: ['PullRequest'],
       keywords: ['merged', 'ci passed', 'checks passed', 'all checks passed'],
-    },
-  },
-  mention: {
-    enabled: false,
-    description: 'Auto-label high-priority mentions',
-    action: 'flag',
-    filters: {
-      reason: ['mention', 'team_mention'],
-      minScore: 70,
     },
   },
   release: {
@@ -193,7 +184,9 @@ export default async function autoCommand(options) {
   console.log('');
 }
 
-function matchesRule(notification, iq, rule) {
+export function matchesRule(notification, iq, rule) {
+  if (rule.action !== 'mark-read') return false;
+  if (iq.category === 'security') return false;
   const { filters } = rule;
   const type = notification.subject?.type;
   const reason = notification.reason;

@@ -6,3 +6,10 @@ notifyiq-digest-*.md
 coverage/
 .nyc_output/
 dist/
+
+.env.*
+!.env.example
+coverage/
+*.log
+*.tgz
+.test-migrations-*/

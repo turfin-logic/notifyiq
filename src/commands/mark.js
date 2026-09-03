@@ -15,14 +15,13 @@ export default async function markCommand(options) {
     done: doneId = null,
   } = options;
 
-  // Mark all as read — the killer feature GitHub doesn't have!
+  // Mark the fetched unread threads as read.
   if (allRead) {
     const spinner = ora(chalk.cyan('Marking all notifications as read...')).start();
     try {
       const notifications = fetchNotifications({ all: false });
       const count = markAllRead(notifications);
       spinner.succeed(chalk.green(`✅ Marked ${count} notifications as read!`));
-      console.log(chalk.dim('  (GitHub doesn\'t have "mark all read" — NotifyIQ does!)'));
       console.log('');
       return;
     } catch (err) {
@@ -68,7 +67,6 @@ export default async function markCommand(options) {
     try {
       markNotificationRead(spamId);
       spinner.succeed(chalk.green(`🗑️ Notification ${spamId} marked as spam & read`));
-      console.log(chalk.dim('  (Spam patterns are saved locally to improve detection)'));
       console.log('');
       return;
     } catch (err) {
@@ -97,7 +95,6 @@ export default async function markCommand(options) {
   console.log(chalk.yellow('\n⚠️  Provide an action. Examples:\n'));
   console.log(chalk.dim('  notifyiq mark --all-read       Mark all as read'));
   console.log(chalk.dim('  notifyiq mark --read <id>       Mark specific as read'));
-  console.log(chalk.dim('  notifyiq mark --unread <id>     Mark specific as unread'));
   console.log(chalk.dim('  notifyiq mark --spam <id>       Mark as spam + read'));
   console.log(chalk.dim('  notifyiq mark --done <id>        Mark as done + read'));
   console.log('');

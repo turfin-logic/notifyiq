@@ -19,7 +19,7 @@ const VERSION = '1.0.0';
 program
   .name('notifyiq')
   .description(chalk.cyan.bold(
-    `${figures.star}  NotifyIQ — AI-powered GitHub notification triage\n` +
+    `${figures.star}  NotifyIQ — Rule-based GitHub notification triage\n` +
     `    Stop drowning in notifications. Start acting on what matters.`
   ))
   .version(VERSION);
@@ -33,7 +33,7 @@ program
   .option('-r, --repo <repo>', 'Filter by repository (e.g., owner/repo)')
   .option('-l, --limit <n>', 'Max notifications to show', '30')
   .option('--reason <reason>', 'Filter by reason: author, comment, mention, review_requested, assign, subscribed, team_mention')
-  .option('--priority', 'Sort by AI priority score')
+  .option('--priority', 'Sort by heuristic priority score')
   .option('-s, --since <date>', 'Notifications since date (e.g., 2024-01-01 or 7d, 24h)')
   .action(inboxCommand);
 
@@ -62,8 +62,7 @@ program
   .alias('m')
   .description('Manage notification read status')
   .option('--read <id>', 'Mark specific notification as read')
-  .option('--unread <id>', 'Mark specific notification as unread')
-  .option('--all-read', 'Mark all notifications as read (GitHub lacks this — we do it!)')
+  .option('--all-read', 'Mark fetched notifications as read')
   .option('--spam <id>', 'Mark as spam and read')
   .option('--done <id>', 'Mark as done and read')
   .action(markCommand);
@@ -88,7 +87,7 @@ program
   .option('--get <key>', 'Get a config value')
   .option('--reset', 'Reset to defaults')
   .option('--show', 'Show current config')
-  .option('--ai-provider <provider>', 'Set AI provider: openai, anthropic, local (ollama)')
+  .option('--ai-provider <provider>', 'Set classifier provider (only rule-based is implemented)')
   .option('--ai-key <key>', 'Set AI API key')
   .action(configCommand);
 
